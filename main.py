@@ -16,7 +16,7 @@ def stat(mat, name):
     print(f"{mat}\n")
 
 
-def visualize_polygon(polygon, points_lat_long):
+def visualize_polygon(polygon, assets, photos, points_lat_long):
     poly_lons, poly_lats = polygon.exterior.xy
     center_lon = polygon.centroid.x
     center_lat = polygon.centroid.y
@@ -40,22 +40,52 @@ def visualize_polygon(polygon, points_lat_long):
 
     print(f"Depot at [{depot_lon}, {depot_lat}]")
 
-    # fig.add_trace(
-    #     go.Scattermapbox(
-    #         mode="markers",
-    #         lon=[depot_lon],
-    #         lat=[depot_lat],
-    #         marker=dict(size=20, color="green", symbol="star"),
-    #         name="Depot",
-    #     )
-    # )
+    layout_layers = []
+
+    depot_layer = {
+        "sourcetype": "geojson",
+        "source": {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [depot_lon, depot_lat]},
+        },
+        "type": "circle",
+        "color": "green",
+    }
+
+    asset_layer = {
+        "sourcetype": "geojson",
+        "source": {
+            "type": "Feature",
+            "geometry": {"type": "MultiPoint", "coordinates": assets.tolist()},
+        },
+        "type": "circle",
+        "color": "red",
+        "opacity": 0.25,
+    }
+
+    photo_layer = {
+        "sourcetype": "geojson",
+        "source": {
+            "type": "Feature",
+            "geometry": {"type": "MultiPoint", "coordinates": photos.tolist()},
+        },
+        "type": "circle",
+        "color": "blue",
+        "opacity": 0.1,
+    }
+
+    layout_layers.append(asset_layer)
+    layout_layers.append(photo_layer)
+    layout_layers.append(depot_layer)
+
     fig.update_layout(
         title_text="Drone Flight Polygon",
-        mapbox_style="open-street-map",
+        mapbox_style="carto-positron",
         mapbox_center_lon=center_lon,
         mapbox_center_lat=center_lat,
-        mapbox_zoom=14,
+        mapbox_zoom=16,
         margin={"r": 0, "t": 40, "l": 0, "b": 0},
+        mapbox_layers=layout_layers,
     )
     fig.show()
 
@@ -73,6 +103,16 @@ def main():
         polygon_wkt = f.read()
     polygon = wkt_loads(polygon_wkt)
 
+    valid_asset_indices = [
+        i for i in range(asset_indexes[0], asset_indexes[1]) if i < len(points_lat_long)
+    ]
+    asset_coords = points_lat_long[valid_asset_indices]
+
+    valid_photo_indices = [
+        i for i in range(photo_indexes[0], photo_indexes[1]) if i < len(points_lat_long)
+    ]
+    photo_coords = points_lat_long[valid_photo_indices]
+
     print("Loaded data!")
 
     stat(distance_matrix, "Distance Matrix")
@@ -82,7 +122,7 @@ def main():
     stat(photo_indexes, "Photo Indexes")
 
     # Visualizing Polygon
-    visualize_polygon(polygon, points_lat_long)
+    visualize_polygon(polygon, asset_coords, photo_coords, points_lat_long)
 
     quit()
 
