@@ -1,5 +1,5 @@
 # I am going to build an unconstrained tour
-# Let it try to optimize without a specific plan 
+# Let it try to optimize without a specific plan
 # Or idea, so we will see
 
 import ortools
@@ -13,19 +13,13 @@ from ortools.constraint_solver import pywrapcp
 # Get the distance matrix from the code that was downloaded and provided
 distance_matrix = np.load("distance_matrix.npy")
 
-
-
 # This where I find the start point or end point for the optmized graph
 # A way point is a point that is in a way of the main point
 way_points = np.load("points_lat_long.npy")
 
 depot = int(0)
-
-
-# For this step since we only need a single vehicle setup for optimization
-# So let's do it
 num_of_vehicles = 1
-
+max_mission_distance = 37725
 
 # Do the index manager first to figure out the code
 manager = pywrapcp.RoutingIndexManager(
@@ -47,9 +41,8 @@ def distance_between_nodes(beginning_index, ending_index):
 
 # RERUN THIS TEST TO CONFIRM YOUR OFF-DIAGONAL VALUES ARE NON-ZERO
 print("Distance from node 0 to 1:", distance_matrix[0][1])
-print("Distance from node 2778 to 2777:", distance_matrix[2778][2777]) 
+print("Distance from node 2778 to 2777:", distance_matrix[2778][2777])
 print("Distance from node 1 to 0:", distance_matrix[1][0])
-
 
 
 # Ok we need to continue to construct the rest of the graph for the route
@@ -73,4 +66,3 @@ search_parameters.first_solution_strategy = (
 
 # Find the actual most optimal path this way
 solution = routing.SolveWithParameters(search_parameters)
-
