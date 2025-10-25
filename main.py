@@ -19,7 +19,7 @@ def stat(mat, name):
     print(f"{mat}\n")
 
 
-def visualize_polygon(polygon, points_lat_long):
+def visualize_polygon(polygon, assets, photos, points_lat_long):
     poly_lons, poly_lats = polygon.exterior.xy
     center_lon = polygon.centroid.x
     center_lat = polygon.centroid.y
@@ -43,22 +43,52 @@ def visualize_polygon(polygon, points_lat_long):
 
     print(f"Depot at [{depot_lon}, {depot_lat}]")
 
-    # fig.add_trace(
-    #     go.Scattermapbox(
-    #         mode="markers",
-    #         lon=[depot_lon],
-    #         lat=[depot_lat],
-    #         marker=dict(size=20, color="green", symbol="star"),
-    #         name="Depot",
-    #     )
-    # )
+    layout_layers = []
+
+    depot_layer = {
+        "sourcetype": "geojson",
+        "source": {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [depot_lon, depot_lat]},
+        },
+        "type": "circle",
+        "color": "green",
+    }
+
+    asset_layer = {
+        "sourcetype": "geojson",
+        "source": {
+            "type": "Feature",
+            "geometry": {"type": "MultiPoint", "coordinates": assets.tolist()},
+        },
+        "type": "circle",
+        "color": "red",
+        "opacity": 0.25,
+    }
+
+    photo_layer = {
+        "sourcetype": "geojson",
+        "source": {
+            "type": "Feature",
+            "geometry": {"type": "MultiPoint", "coordinates": photos.tolist()},
+        },
+        "type": "circle",
+        "color": "blue",
+        "opacity": 0.1,
+    }
+
+    layout_layers.append(asset_layer)
+    layout_layers.append(photo_layer)
+    layout_layers.append(depot_layer)
+
     fig.update_layout(
         title_text="Drone Flight Polygon",
-        mapbox_style="open-street-map",
+        mapbox_style="carto-positron",
         mapbox_center_lon=center_lon,
         mapbox_center_lat=center_lat,
-        mapbox_zoom=14,
+        mapbox_zoom=16,
         margin={"r": 0, "t": 40, "l": 0, "b": 0},
+        mapbox_layers=layout_layers,
     )
     fig.show()
 
@@ -76,7 +106,17 @@ def main():
     #     polygon_wkt = f.read()
     # polygon = wkt_loads(polygon_wkt)
 
-    # print("Loaded data!")
+    valid_asset_indices = [
+        i for i in range(asset_indexes[0], asset_indexes[1]) if i < len(points_lat_long)
+    ]
+    asset_coords = points_lat_long[valid_asset_indices]
+
+    valid_photo_indices = [
+        i for i in range(photo_indexes[0], photo_indexes[1]) if i < len(points_lat_long)
+    ]
+    photo_coords = points_lat_long[valid_photo_indices]
+
+    print("Loaded data!")
 
     # stat(distance_matrix, "Distance Matrix")
     # stat(predecessors, "Predecessors")
@@ -84,76 +124,8 @@ def main():
     # stat(asset_indexes, "Asset Indexes")
     # stat(photo_indexes, "Photo Indexes")
 
-    # # Visualizing Polygon
-    # visualize_polygon(polygon, points_lat_long)
-
-    df = pd.DataFrame(
-        np.random.randn(1000, 2) / [50, 50] + [37.76, -122.4],
-        columns = ['lat', 'lon']
-    )
-
-    x = st.slider('x')
-    st.write(x, 'squared is', x * x)
-
-    st.map(df)
-
-    if st.checkbox("Show dataframe"):
-        chart_data = pd.DataFrame(
-            np.random.randn(20, 3),
-            columns = ['a', 'b', 'c']
-        )
-        st.write(chart_data)
-
-    dataframe = pd.DataFrame({
-        'first column': [1, 2, 3, 4],
-        'second column': [10, 20, 30, 40]
-    })
-
-    option = st.selectbox(
-        'Which number do you like best?',
-        dataframe['first column']
-    )
-
-    st.write('You selected: ', option)
-
-    add_selectbox = st.sidebar.selectbox(
-        'How would you like to be contacted?',
-        ('Email', 'Home phone', 'Mobile phone')
-    )
-
-    add_slider = st.sidebar.slider(
-        'Select a range of values',
-        0.0, 100.0, (25.0, 75.0)
-    )
-
-    left_column, right_column = st.columns(2)
-
-    # you can use a column just like st.sidebar
-    left_column.button('Press me!')
-
-    # or even better, call streamlit functions inside a "with" block
-    with right_column:
-        chosen = st.radio(
-            'Sorting hat',
-            ("Gryffindor", "Ravenclaw", "Hufflepuff", "Slytherin")
-        )
-        st.write(f"You are in {chosen} house!")
-
-    st.write("Starting a long computation...")
-
-    # add a placeholder
-    latest_iteration = st.empty()
-    bar = st.progress(0)
-
-    for i in range(100):
-        # update the progress bar with each iteration
-        latest_iteration.text(f"Iteration {i + 1}")
-        bar.progress(i + 1)
-        time.sleep(0.1)
-
-    st.write("...and now we're done!")
-
-    
+    # Visualizing Polygon
+    visualize_polygon(polygon, asset_coords, photo_coords, points_lat_long)
 
     quit()
 
