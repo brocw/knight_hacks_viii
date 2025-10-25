@@ -8,6 +8,10 @@ import sys
 
 MAX_MISSION_DISTANCE = 37725
 
+NUM_DRONES = 250
+
+SOLVER_LIMIT_TIME_SEC = 120
+
 
 def stat(mat, name):
     print(f"Stats for {name}")
@@ -103,7 +107,7 @@ def step_two(dist_matrix, photo_coords):
 
     sub_dist_matrix = dist_matrix[np.ix_(nodes_of_interest, nodes_of_interest)]
 
-    manager = pywrapcp.RoutingIndexManager(num_locations, 1, 0)
+    manager = pywrapcp.RoutingIndexManager(num_locations, NUM_DRONES, 0)
 
     routing = pywrapcp.RoutingModel(manager)
 
@@ -123,9 +127,12 @@ def step_two(dist_matrix, photo_coords):
 
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
-        routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
+        routing_enums_pb2.FirstSolutionStrategy.AUTOMATIC
     )
-    search_parameters.time_limit.FromSeconds(60)
+    search_parameters.local_search_metaheuristic = (
+        routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
+    )
+    search_parameters.time_limit.FromSeconds(SOLVER_LIMIT_TIME_SEC)
 
     print("Solving VRP...")
     solution = routing.SolveWithParameters(search_parameters)
