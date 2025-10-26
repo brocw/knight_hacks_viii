@@ -362,8 +362,6 @@ def main():
             st.session_state.all_missions_detailed,
         )
 
-<<<<<<< Updated upstream
-=======
         # Display the map first
         st_folium(
             folium_map, width=700, height=700, key="drone_map", returned_objects=[]
@@ -377,8 +375,6 @@ def main():
         #     points_lat_long,
         #     st.session_state.all_missions_detailed,
         # )
-
->>>>>>> Stashed changes
     else:
         st.write("Solver failed to find a solution.")
 
