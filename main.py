@@ -187,81 +187,8 @@ def validate(distance_matrix, all_missions_detailed, valid_photo_indices):
     return total_dist_all_missions
 
 
-def visualize_polygon(polygon, assets, photos, points_lat_long):
-    poly_lons, poly_lats = polygon.exterior.xy
-    center_lon = polygon.centroid.x
-    center_lat = polygon.centroid.y
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scattermapbox(
-            mode="lines",
-            lon=list(poly_lons),
-            lat=list(poly_lats),
-            fill="toself",
-            fillcolor="rgba(173, 216, 230, 0.3)",
-            line=dict(color="blue", width=2),
-            name="Flight Zone",
-        )
-    )
-
-    depot_lon_lat = points_lat_long[0]
-    depot_lon = depot_lon_lat[0]
-    depot_lat = depot_lon_lat[1]
-
-    print(f"Depot at [{depot_lon}, {depot_lat}]")
-
-    layout_layers = []
-
-    depot_layer = {
-        "sourcetype": "geojson",
-        "source": {
-            "type": "Feature",
-            "geometry": {"type": "Point", "coordinates": [depot_lon, depot_lat]},
-        },
-        "type": "circle",
-        "color": "green",
-    }
-
-    asset_layer = {
-        "sourcetype": "geojson",
-        "source": {
-            "type": "Feature",
-            "geometry": {"type": "MultiPoint", "coordinates": assets.tolist()},
-        },
-        "type": "circle",
-        "color": "red",
-        "opacity": 0.25,
-    }
-
-    photo_layer = {
-        "sourcetype": "geojson",
-        "source": {
-            "type": "Feature",
-            "geometry": {"type": "MultiPoint", "coordinates": photos.tolist()},
-        },
-        "type": "circle",
-        "color": "blue",
-        "opacity": 0.1,
-    }
-
-    layout_layers.append(asset_layer)
-    layout_layers.append(photo_layer)
-    layout_layers.append(depot_layer)
-
-    fig.update_layout(
-        title_text="Drone Flight Polygon",
-        mapbox_style="carto-positron",
-        mapbox_center_lon=center_lon,
-        mapbox_center_lat=center_lat,
-        mapbox_zoom=16,
-        margin={"r": 0, "t": 40, "l": 0, "b": 0},
-        mapbox_layers=layout_layers,
-    )
-    fig.show()
-
 @st.cache_data
-def create_folium_map(points_lat_long, _polygon, assets):
+def create_folium_map(points_lat_long, _polygon, photos, all_missions_detailed):
     m = folium.Map(location=[_polygon.centroid.y, _polygon.centroid.x], zoom_start=16)
 
     # Get polygon coordinates
@@ -270,39 +197,74 @@ def create_folium_map(points_lat_long, _polygon, assets):
 
     folium.Polygon(
         locations=coords_latlon,
-        color='blue',
+        color="blue",
         fill=True,
-        fillColor='blue',
+        fillColor="blue",
         fillOpacity=0.3,
-        weight=2
+        weight=2,
     ).add_to(m)
 
     # Add a circle marker for the depot
-    depot_marker = folium.Marker(
+    folium.CircleMarker(
         location=[points_lat_long[0][1], points_lat_long[0][0]],
-        radius=20,
-        tooltip='Depot',
-        color='yellow',
+        radius=10,
+        tooltip="Depot",
+        color="green",
         fill=True,
-        fillOpacity=0.5,
+        fillColor="green",
+        fillOpacity=0.8,
         stroke=True,
-        opacity=20
     ).add_to(m)
 
-    # Add a circle marker for each asset
-    for i, asset_coord in enumerate(assets):
+    # Add a circle marker for each photo
+    photo_group = folium.FeatureGroup(name="Photo Nodes")
+    for i, asset_coord in enumerate(photos):
         folium.CircleMarker(
             location=[asset_coord[1], asset_coord[0]],  # lat, lon format
-            radius=6,
-            color='red',
+            radius=4,
+            color="blue",
             fill=True,
-            fillColor='red',
+            fillColor="blue",
             fillOpacity=0.6,
-            weight=2
-        ).add_to(m)
+            weight=1,
+            tooltip=f"Photo {i}",
+        ).add_to(photo_group)
+    photo_group.add_to(m)
 
+    route_colors = [
+        "#E6194B",
+        "#3CB44B",
+        "#FFE119",
+        "#4363D8",
+        "#F58231",
+        "#911EB4",
+        "#46F0F0",
+        "#F032E6",
+        "#BCF60C",
+        "#FABEBE",
+        "#008080",
+        "#E6BEFF",
+    ]
+
+    route_group = folium.FeatureGroup(name="Mission Routes")
+    for i, path in enumerate(all_missions_detailed):
+        if not path:
+            continue
+
+        path_coords_lon_lat = points_lat_long[path]
+        path_coords_lat_lon = [(coord[1], coord[0]) for coord in path_coords_lon_lat]
+
+        folium.PolyLine(
+            locations=path_coords_lat_lon,
+            tooltip=f"Mission {i+1}",
+            color=route_colors[i % len(route_colors)],
+            weight=3,
+            opacity=0.7,
+        ).add_to(route_group)
+    route_group.add_to(m)
+
+    folium.LayerControl().add_to(m)
     return m
-
 
 
 def main():
@@ -314,9 +276,11 @@ def main():
     photo_indexes = np.load("photo_indexes.npy")
 
     # Centered title using markdown with custom CSS
-    st.markdown("<h1 style='text-align: center;'>Optimizing Drone Flights</h1>", unsafe_allow_html=True)
+    st.markdown(
+        "<h1 style='text-align: center;'>Optimizing Drone Flights</h1>",
+        unsafe_allow_html=True,
+    )
     st.divider()
-
 
     # Loading polygon (keep spinner active while we read and parse WKT so
     # both `polygon_wkt` and `polygon` are available during the spinner)
@@ -328,7 +292,10 @@ def main():
 
     with st.spinner("Re-computing Predecessor Matrix...", show_time=True):
         dist_matrix_fw, predecessors_fw = shortest_path(
-            csgraph=distance_matrix, method="FW", directed=False, return_predecessors=True
+            csgraph=distance_matrix,
+            method="FW",
+            directed=False,
+            return_predecessors=True,
         )
 
     st.write("Re-computing done!")
@@ -354,7 +321,6 @@ def main():
     photo_coords = points_lat_long[valid_photo_indices]
 
     # Calculating VRP (Vehicle Route Plan)
-
     with st.spinner(" Calculating VRP (Vehicle Route Plan)", show_time=True):
         solution_package = calculate_vrp(distance_matrix, valid_photo_indices)
 
@@ -362,46 +328,57 @@ def main():
 
     if solution_package:
         # Find individual missions from VRP
-
         with st.spinner("Find individual missions from VRP", show_time=True):
             st.session_state.all_missions_detailed = create_missions(
                 solution_package, predecessors, n_max_valid
             )
-        
+
         st.write("Individual mission created!")
 
         solution = solution_package[0]
 
         # Validate missions (All waypoints covered, battery usage)
-        with st.spinner("Validate missions (All waypoints covered, battery usage)", show_time=True):
+        with st.spinner(
+            "Validate missions (All waypoints covered, battery usage)", show_time=True
+        ):
             total_dist_all_missions = validate(
-                distance_matrix, st.session_state.all_missions_detailed, valid_photo_indices
+                distance_matrix,
+                st.session_state.all_missions_detailed,
+                valid_photo_indices,
             )
 
         st.write("Validating missions is done!")
-
         st.write(f"Total Missions: {len(st.session_state.all_missions_detailed)}")
         st.write(f"Total Flight Distance: {total_dist_all_missions:.2f} ft")
         st.write(f"Solver Objective: {solution.ObjectiveValue()} ft (uses sub-matrix)")
 
-
-
         st.header("Full Map")
 
-
         # Loading map
-        folium_map = create_folium_map(points_lat_long, polygon, asset_coords)
-
-
-        # Display the map first
-        st_folium(folium_map, width=700, height=700, key="drone_map", returned_objects=[])
-        
-        
-        # Pop-up polygon of route
-        visual.visualize_polygon(
-            polygon, asset_coords, photo_coords, points_lat_long, st.session_state.all_missions_detailed
+        folium_map = create_folium_map(
+            points_lat_long,
+            polygon,
+            photo_coords,
+            st.session_state.all_missions_detailed,
         )
 
+<<<<<<< Updated upstream
+=======
+        # Display the map first
+        st_folium(
+            folium_map, width=700, height=700, key="drone_map", returned_objects=[]
+        )
+
+        # Pop-up polygon of route
+        # visual.visualize_polygon(
+        #     polygon,
+        #     asset_coords,
+        #     photo_coords,
+        #     points_lat_long,
+        #     st.session_state.all_missions_detailed,
+        # )
+
+>>>>>>> Stashed changes
     else:
         st.write("Solver failed to find a solution.")
 
