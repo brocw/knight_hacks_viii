@@ -16,6 +16,31 @@ MAX_MISSION_DISTANCE = 37725
 NUM_DRONES = 250
 SOLVER_LIMIT_TIME_SEC = 120
 
+# Displays statistics for arrays
+def stat(mat, name):
+    """Display statistics for a matrix/array in Streamlit"""
+    st.subheader(f"📊 Stats for {name}")
+    
+    # Create columns for a nice layout
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Count", len(mat))
+        st.metric("Mean", f"{np.mean(mat):.4f}")
+    
+    with col2:
+        st.metric("Median", f"{np.median(mat):.4f}")
+        st.metric("Std Dev", f"{np.std(mat):.4f}")
+    
+    with col3:
+        st.metric("Min", f"{np.min(mat):.4f}")
+        st.metric("Max", f"{np.max(mat):.4f}")
+    
+    # Optional: Show the data in an expander to keep it clean
+    with st.expander(f"View {name} data"):
+        st.write(mat)
+    
+    st.divider()  # Add a visual separator
 
 # Just a number
 def calculate_vrp(dist_matrix, photo_coords):
