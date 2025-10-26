@@ -93,6 +93,34 @@ def visualize_polygon(polygon, assets, photos, points_lat_long):
     )
     fig.show()
 
+def streamlit_folium_map(points_lat_long, polygon):
+    m = folium.Map(location=[polygon.centroid.y, polygon.centroid.x], zoom_start=16)
+
+    # Get polygon coordinates
+    coords = list(polygon.exterior.coords)
+    coords_latlon = [(lat, lon) for lon, lat in coords]
+
+    folium.Polygon(
+        locations=coords_latlon,
+        color='blue',
+        fill=True,
+        fillColor='blue',
+        fillOpacity=0.3,
+        weight=2
+    ).add_to(m)
+
+    folium.CircleMarker(
+        location=[points_lat_long[0][1], points_lat_long[0][0]],
+        radius=20,
+        tooltip='Depot',
+        color='green',
+        fill=True,
+        opacity=1,
+        weight=3
+    ).add_to(m)
+
+    st_folium(m, width=700)
+
 
 def main():
     # Loading NumPy arrays
@@ -126,23 +154,8 @@ def main():
     # stat(photo_indexes, "Photo Indexes")
 
     st.title("Drone Flight Optimization!")
+    streamlit_folium_map(points_lat_long, polygon)
 
-    m = folium.Map(location=[polygon.centroid.y, polygon.centroid.x], zoom_start=16)
-
-    # Get polygon coordinates
-    coords = list(polygon.exterior.coords)
-    coords_latlon = [(lat, lon) for lon, lat in coords]
-
-    folium.Polygon(
-        locations=coords_latlon,
-        color='blue',
-        fill=True,
-        fillColor='blue',
-        fillOpacity=0.3,
-        weight=2
-    ).add_to(m)
-
-    st_folium(m, width=700)
 
 
 
