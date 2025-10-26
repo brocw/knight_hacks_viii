@@ -179,7 +179,9 @@ def main():
 
     print("Loaded data!")
 
-    st.title("Optimizing Drone Flights")
+    # Centered title using markdown with custom CSS
+    st.markdown("<h1 style='text-align: center;'>Optimizing Drone Flights</h1>", unsafe_allow_html=True)
+    st.divider()
 
     # Display the map first
     st_folium(folium_map, width=700, height=700, key="drone_map", returned_objects=[])
@@ -192,7 +194,32 @@ def main():
         stat(asset_indexes, "Asset Indexes")
         stat(photo_indexes, "Photo Indexes")
 
-    st.subheader('This is our flight zone and asset locations!')
+    st.divider()
+    
+    # Button to start algorithm
+    st.subheader("🚁 Start Drone Path Optimization")
+    
+    # Create columns to center the button
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        if st.button("🚀 Run Algorithm", type="primary", use_container_width=True):
+            with st.spinner("Computing optimal drone path..."):
+                # Add your algorithm here
+                # For now, simulating computation time
+                time.sleep(2)
+                
+                st.success("✅ Algorithm completed successfully!")
+                
+                # Display results here
+                st.write("**Results:**")
+                st.write("- Total distance: TBD")
+                st.write("- Number of waypoints: TBD")
+                st.write("- Estimated flight time: TBD")
+                
+                # You can add more visualizations or data here
+
+    
 
 
 
