@@ -136,7 +136,6 @@ def create_folium_map(points_lat_long, _polygon, assets):
 
     return m
 
-
 def main():
     # Loading NumPy arrays
     distance_matrix = np.load("distance_matrix.npy")
@@ -160,6 +159,9 @@ def main():
     ]
     photo_coords = points_lat_long[valid_photo_indices]
 
+    # Loading map
+    folium_map = create_folium_map(points_lat_long, polygon, asset_coords)
+
     print("Loaded data!")
 
     # stat(distance_matrix, "Distance Matrix")
@@ -169,12 +171,10 @@ def main():
     # stat(photo_indexes, "Photo Indexes")
 
     st.title("Drone Flight Optimization!")
-    
-    # Create the map (cached)
-    map_obj = create_folium_map(points_lat_long, polygon, asset_coords)
-    
-    # Display the map (not cached - widget is outside cached function)
-    st_folium(map_obj, width=700)
+
+    # The key parameter ensures state is maintained across reruns
+    # returned_objects=[] prevents the widget from triggering reruns on interaction
+    st_folium(folium_map, width=700, height=700, key="drone_map", returned_objects=[])
 
 
 
