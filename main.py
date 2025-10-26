@@ -315,6 +315,7 @@ def main():
         "<h1 style='text-align: center;'>Optimizing Drone Flights</h1>",
         unsafe_allow_html=True,
     )
+    st.markdown("<h2 style='text-align: center;'>This app helps optimize drone flights within a constrained flight zone</h2>", unsafe_allow_html=True)
 
     # Show statistics in an expandable section
     with st.expander("📈 View Data Statistics", expanded=False):
