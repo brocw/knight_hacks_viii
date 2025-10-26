@@ -313,6 +313,16 @@ def main():
     asset_indexes = np.load("asset_indexes.npy")
     photo_indexes = np.load("photo_indexes.npy")
 
+    # Inject CSS so all header tags (h1..h6) use a dark earthy green
+    header_style = """
+    <style>
+      h1, h2, h3, h4, h5, h6 {
+        color: #355E3B !important;
+      }
+    </style>
+    """
+    st.markdown(header_style, unsafe_allow_html=True)
+
     # Centered title using markdown with custom CSS
     st.markdown("<h1 style='text-align: center;'>Optimizing Drone Flights</h1>", unsafe_allow_html=True)
     st.divider()
@@ -324,14 +334,12 @@ def main():
         polygon_wkt = f.read()
     polygon = wkt_loads(polygon_wkt)
 
-    st.write("Loaded data!")
-
     with st.spinner("Re-computing Predecessor Matrix...", show_time=True):
         dist_matrix_fw, predecessors_fw = shortest_path(
             csgraph=distance_matrix, method="FW", directed=False, return_predecessors=True
         )
 
-    st.write("Re-computing done!")
+    st.markdown("<h3>Re-computing done!</h3>", unsafe_allow_html=True)
 
     predecessors = predecessors_fw
     distance_matrix = dist_matrix_fw
@@ -355,10 +363,10 @@ def main():
 
     # Calculating VRP (Vehicle Route Plan)
 
-    with st.spinner(" Calculating VRP (Vehicle Route Plan)", show_time=True):
+    with st.spinner("Calculating VRP (Vehicle Route Plan)", show_time=True):
         solution_package = calculate_vrp(distance_matrix, valid_photo_indices)
 
-    st.write("Calculating VRP (Vehicle Route Plan) done! ")
+    st.markdown("<h3>Calculating VRP (Vehicle Route Plan) done!</h3>", unsafe_allow_html=True)
 
     if solution_package:
         # Find individual missions from VRP
@@ -368,7 +376,7 @@ def main():
                 solution_package, predecessors, n_max_valid
             )
         
-        st.write("Individual mission created!")
+        st.markdown("<h3>Individual mission created!</h3>", unsafe_allow_html=True)
 
         solution = solution_package[0]
 
@@ -378,11 +386,11 @@ def main():
                 distance_matrix, st.session_state.all_missions_detailed, valid_photo_indices
             )
 
-        st.write("Validating missions is done!")
+        st.markdown("<h3>Validating missions is done!</h3>", unsafe_allow_html=True)
 
-        st.write(f"Total Missions: {len(st.session_state.all_missions_detailed)}")
-        st.write(f"Total Flight Distance: {total_dist_all_missions:.2f} ft")
-        st.write(f"Solver Objective: {solution.ObjectiveValue()} ft (uses sub-matrix)")
+        st.markdown(f"<h4>Total Missions: {len(st.session_state.all_missions_detailed)}</h4>", unsafe_allow_html=True)
+        st.markdown(f"<h4>Total Flight Distance: {total_dist_all_missions:.2f} ft</h4>", unsafe_allow_html=True)
+        st.write(f"<h4>Solver Objective: {solution.ObjectiveValue()} ft (uses sub-matrix)</h4>", unsafe_allow_html=True)
 
 
 
