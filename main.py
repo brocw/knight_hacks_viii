@@ -1,6 +1,5 @@
-# from shapely.wkt import loads as wkt_loads
-
-# import plotly.graph_objects as go
+from shapely.wkt import loads as wkt_loads
+import plotly.graph_objects as go
 import streamlit as st
 import numpy as np
 import sys
@@ -94,17 +93,17 @@ def visualize_polygon(polygon, assets, photos, points_lat_long):
 
 
 def main():
-    # # Loading NumPy arrays
-    # distance_matrix = np.load("distance_matrix.npy")
-    # predecessors = np.load("predecessors.npy")
-    # points_lat_long = np.load("points_lat_long.npy")
-    # asset_indexes = np.load("asset_indexes.npy")
-    # photo_indexes = np.load("photo_indexes.npy")
+    # Loading NumPy arrays
+    distance_matrix = np.load("distance_matrix.npy")
+    predecessors = np.load("predecessors.npy")
+    points_lat_long = np.load("points_lat_long.npy")
+    asset_indexes = np.load("asset_indexes.npy")
+    photo_indexes = np.load("photo_indexes.npy")
 
-    # # Loading polygon
-    # with open("polygon_lon_lat.wkt", "r") as f:
-    #     polygon_wkt = f.read()
-    # polygon = wkt_loads(polygon_wkt)
+    # Loading polygon
+    with open("polygon_lon_lat.wkt", "r") as f:
+        polygon_wkt = f.read()
+    polygon = wkt_loads(polygon_wkt)
 
     valid_asset_indices = [
         i for i in range(asset_indexes[0], asset_indexes[1]) if i < len(points_lat_long)
@@ -125,7 +124,7 @@ def main():
     # stat(photo_indexes, "Photo Indexes")
 
     # Visualizing Polygon
-    visualize_polygon(polygon, asset_coords, photo_coords, points_lat_long)
+    st.map(visualize_polygon(polygon, asset_coords, photo_coords, points_lat_long))
 
     df = pd.DataFrame(
         np.random.randn(1000, 2) / [50, 50] + [37.76, -122.4],
