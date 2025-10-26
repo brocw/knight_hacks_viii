@@ -402,7 +402,6 @@ def main():
             polygon, asset_coords, photo_coords, points_lat_long, st.session_state.all_missions_detailed
         )
 
-
     else:
         st.write("Solver failed to find a solution.")
 
