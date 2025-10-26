@@ -5,6 +5,8 @@ import numpy as np
 import sys
 import pandas as pd
 import time
+import folium
+from streamlit_folium import st_folium
 
 
 def stat(mat, name):
@@ -123,74 +125,115 @@ def main():
     # stat(asset_indexes, "Asset Indexes")
     # stat(photo_indexes, "Photo Indexes")
 
+    st.title("Drone Flight Optimization!")
+
+    m = folium.Map(location=[polygon.centroid.y, polygon.centroid.x], zoom_start=16)
+
+    # Get polygon coordinates
+    coords = list(polygon.exterior.coords)
+    coords_latlon = [(lat, lon) for lon, lat in coords]
+
+    folium.Polygon(
+        locations=coords_latlon,
+        color='blue',
+        fill=True,
+        fillColor='blue',
+        fillOpacity=0.3,
+        weight=2
+    ).add_to(m)
+
+    st_folium(m, width=700)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # Visualizing Polygon
-    st.map(visualize_polygon(polygon, asset_coords, photo_coords, points_lat_long))
+    # st.map(visualize_polygon(polygon, asset_coords, photo_coords, points_lat_long))
 
-    df = pd.DataFrame(
-        np.random.randn(1000, 2) / [50, 50] + [37.76, -122.4],
-        columns = ['lat', 'lon']
-    )
+    # df = pd.DataFrame(
+    #     np.random.randn(1000, 2) / [50, 50] + [37.76, -122.4],
+    #     columns = ['lat', 'lon']
+    # )
 
-    x = st.slider('x')
-    st.write(x, 'squared is', x * x)
+    # x = st.slider('x')
+    # st.write(x, 'squared is', x * x)
 
-    st.map(df)
+    # st.map(df)
 
-    if st.checkbox("Show dataframe"):
-        chart_data = pd.DataFrame(
-            np.random.randn(20, 3),
-            columns = ['a', 'b', 'c']
-        )
-        st.write(chart_data)
+    # if st.checkbox("Show dataframe"):
+    #     chart_data = pd.DataFrame(
+    #         np.random.randn(20, 3),
+    #         columns = ['a', 'b', 'c']
+    #     )
+    #     st.write(chart_data)
 
-    dataframe = pd.DataFrame({
-        'first column': [1, 2, 3, 4],
-        'second column': [10, 20, 30, 40]
-    })
+    # dataframe = pd.DataFrame({
+    #     'first column': [1, 2, 3, 4],
+    #     'second column': [10, 20, 30, 40]
+    # })
 
-    option = st.selectbox(
-        'Which number do you like best?',
-        dataframe['first column']
-    )
+    # option = st.selectbox(
+    #     'Which number do you like best?',
+    #     dataframe['first column']
+    # )
 
-    st.write('You selected: ', option)
+    # st.write('You selected: ', option)
 
-    add_selectbox = st.sidebar.selectbox(
-        'How would you like to be contacted?',
-        ('Email', 'Home phone', 'Mobile phone')
-    )
+    # add_selectbox = st.sidebar.selectbox(
+    #     'How would you like to be contacted?',
+    #     ('Email', 'Home phone', 'Mobile phone')
+    # )
 
-    add_slider = st.sidebar.slider(
-        'Select a range of values',
-        0.0, 100.0, (25.0, 75.0)
-    )
+    # add_slider = st.sidebar.slider(
+    #     'Select a range of values',
+    #     0.0, 100.0, (25.0, 75.0)
+    # )
 
-    left_column, right_column = st.columns(2)
+    # left_column, right_column = st.columns(2)
 
-    # you can use a column just like st.sidebar
-    left_column.button('Press me!')
+    # # you can use a column just like st.sidebar
+    # left_column.button('Press me!')
 
-    # or even better, call streamlit functions inside a "with" block
-    with right_column:
-        chosen = st.radio(
-            'Sorting hat',
-            ("Gryffindor", "Ravenclaw", "Hufflepuff", "Slytherin")
-        )
-        st.write(f"You are in {chosen} house!")
+    # # or even better, call streamlit functions inside a "with" block
+    # with right_column:
+    #     chosen = st.radio(
+    #         'Sorting hat',
+    #         ("Gryffindor", "Ravenclaw", "Hufflepuff", "Slytherin")
+    #     )
+    #     st.write(f"You are in {chosen} house!")
 
-    st.write("Starting a long computation...")
+    # st.write("Starting a long computation...")
 
-    # add a placeholder
-    latest_iteration = st.empty()
-    bar = st.progress(0)
+    # # add a placeholder
+    # latest_iteration = st.empty()
+    # bar = st.progress(0)
 
-    for i in range(100):
-        # update the progress bar with each iteration
-        latest_iteration.text(f"Iteration {i + 1}")
-        bar.progress(i + 1)
-        time.sleep(0.1)
+    # for i in range(100):
+    #     # update the progress bar with each iteration
+    #     latest_iteration.text(f"Iteration {i + 1}")
+    #     bar.progress(i + 1)
+    #     time.sleep(0.1)
 
-    st.write("...and now we're done!")
+    # st.write("...and now we're done!")
+
+    
 
     quit()
 
