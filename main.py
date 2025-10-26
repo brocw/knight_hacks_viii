@@ -181,7 +181,11 @@ def main():
 
     # Centered title using markdown with custom CSS
     st.markdown("<h1 style='text-align: center;'>Optimizing Drone Flights</h1>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>Welcome! This application optimizes drone flight paths for asset inspection within a defined polygonal area</h2>",
+                unsafe_allow_html=True)
     st.divider()
+
+    st.subheader("The below map shows the defined flight zone (in blue) along with the depot (green) and assets (red)")
 
     # Display the map first
     st_folium(folium_map, width=700, height=700, key="drone_map", returned_objects=[])
@@ -209,7 +213,7 @@ def main():
                 # For now, simulating computation time
                 time.sleep(2)
                 
-                st.success("✅ Algorithm completed successfully!")
+                st.success("✅ Algorithm completed successfully!", width="stretch")
                 
                 # Display results here
                 st.write("**Results:**")
