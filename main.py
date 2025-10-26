@@ -93,11 +93,12 @@ def visualize_polygon(polygon, assets, photos, points_lat_long):
     )
     fig.show()
 
-def streamlit_folium_map(points_lat_long, polygon):
-    m = folium.Map(location=[polygon.centroid.y, polygon.centroid.x], zoom_start=16)
+@st.cache_data
+def create_folium_map(points_lat_long, _polygon, assets):
+    m = folium.Map(location=[_polygon.centroid.y, _polygon.centroid.x], zoom_start=16)
 
     # Get polygon coordinates
-    coords = list(polygon.exterior.coords)
+    coords = list(_polygon.exterior.coords)
     coords_latlon = [(lat, lon) for lon, lat in coords]
 
     folium.Polygon(
@@ -109,17 +110,31 @@ def streamlit_folium_map(points_lat_long, polygon):
         weight=2
     ).add_to(m)
 
-    folium.CircleMarker(
+    # Add a circle marker for the depot
+    depot_marker = folium.CircleMarker(
         location=[points_lat_long[0][1], points_lat_long[0][0]],
         radius=20,
         tooltip='Depot',
         color='green',
         fill=True,
-        opacity=1,
-        weight=3
+        fillOpacity=0.5,
+        stroke=True,
+        opacity=20
     ).add_to(m)
 
-    st_folium(m, width=700)
+    # Add a circle marker for each asset
+    for i, asset_coord in enumerate(assets):
+        folium.CircleMarker(
+            location=[asset_coord[1], asset_coord[0]],  # lat, lon format
+            radius=6,
+            color='red',
+            fill=True,
+            fillColor='red',
+            fillOpacity=0.6,
+            weight=2
+        ).add_to(m)
+
+    return m
 
 
 def main():
@@ -154,7 +169,12 @@ def main():
     # stat(photo_indexes, "Photo Indexes")
 
     st.title("Drone Flight Optimization!")
-    streamlit_folium_map(points_lat_long, polygon)
+    
+    # Create the map (cached)
+    map_obj = create_folium_map(points_lat_long, polygon, asset_coords)
+    
+    # Display the map (not cached - widget is outside cached function)
+    st_folium(map_obj, width=700)
 
 
 
