@@ -24,7 +24,7 @@ def stat(mat, name):
     print(f"{mat}\n")
 
 
-def visualize_polygon(polygon, assets, photos, points_lat_long):
+def visualize_polygon(polygon, assets, photos, points_lat_long, all_missions_detailed):
     poly_lons, poly_lats = polygon.exterior.xy
     center_lon = polygon.centroid.x
     center_lat = polygon.centroid.y
@@ -41,6 +41,24 @@ def visualize_polygon(polygon, assets, photos, points_lat_long):
             name="Flight Zone",
         )
     )
+
+    for i, path in enumerate(all_missions_detailed):
+        if not path:
+            continue
+
+        path_coords = points_lat_long[path]
+        path_lons = path_coords[:, 0]
+        path_lats = path_coords[:, 1]
+
+        fig.add_trace(
+            go.Scattermapbox(
+                mode="lines",
+                lon=path_lons,
+                lat=path_lats,
+                line=dict(width=2, color="yellow"),
+                name=f"Mission {i+1}",
+            )
+        )
 
     depot_lon_lat = points_lat_long[0]
     depot_lon = depot_lon_lat[0]
@@ -95,7 +113,7 @@ def visualize_polygon(polygon, assets, photos, points_lat_long):
         margin={"r": 0, "t": 40, "l": 0, "b": 0},
         mapbox_layers=layout_layers,
     )
-    # fig.show()
+    fig.show()
 
 
 def step_two(dist_matrix, photo_coords):
@@ -146,6 +164,47 @@ def step_two(dist_matrix, photo_coords):
     return solution, manager, routing, solver_idx_to_waypoint_idx
 
 
+def get_full_path(from_node_orig, to_node_orig, predecessors_matrix, n_max):
+    path = []
+    curr = to_node_orig
+
+    if from_node_orig == to_node_orig:
+        return [from_node_orig]
+
+    visted_in_segment = set()
+
+    while curr != from_node_orig:
+        path.append(curr)
+        visted_in_segment.add(curr)
+        prev = predecessors_matrix[from_node_orig][curr]
+
+        if prev < 0 or prev >= n_max:
+            if prev == from_node_orig:
+                pass
+            else:
+                print(
+                    f"Error: Path reconstruction found invalid node {prev} from predecessors[{from_node_orig}][{curr}]"
+                )
+                return None
+
+        if prev == from_node_orig:
+            path.append(from_node_orig)
+            return path[::-1]
+
+        if prev == curr:
+            print(f"Path reconstruction failed (self-cycle) at {curr}")
+            return None
+
+        if prev in visted_in_segment:
+            print(
+                f"Path reconstruction failed (multi-node cycle) from {from_node_orig} to {to_node_orig}"
+            )
+
+        curr = prev
+
+    return None
+
+
 def main():
     # Loading NumPy arrays
     distance_matrix = np.load("distance_matrix.npy")
@@ -159,36 +218,116 @@ def main():
         polygon_wkt = f.read()
     polygon = wkt_loads(polygon_wkt)
 
+    n_points = len(points_lat_long)
+    n_dist = len(distance_matrix)
+    n_pred = len(predecessors)
+
+    n_max_valid = min(n_points, n_dist, n_pred)
+
     valid_asset_indices = [
-        i for i in range(asset_indexes[0], asset_indexes[1]) if i < len(points_lat_long)
+        i for i in range(asset_indexes[0], asset_indexes[1]) if i < n_max_valid
     ]
     asset_coords = points_lat_long[valid_asset_indices]
 
     valid_photo_indices = [
-        i for i in range(photo_indexes[0], photo_indexes[1]) if i < len(points_lat_long)
+        i for i in range(photo_indexes[0], photo_indexes[1]) if i < n_max_valid
     ]
     photo_coords = points_lat_long[valid_photo_indices]
 
     print("Loaded data!")
 
-    stat(distance_matrix, "Distance Matrix")
-    stat(predecessors, "Predecessors")
-    stat(points_lat_long, "Points (Lat/Long)")
-    stat(asset_indexes, "Asset Indexes")
-    stat(photo_indexes, "Photo Indexes")
-
-    # Visualizing Polygon
-    visualize_polygon(polygon, asset_coords, photo_coords, points_lat_long)
-
     solution_package = step_two(distance_matrix, valid_photo_indices)
 
     if solution_package:
         solution, manager, routing, solver_idx_to_waypoint_idx = solution_package
-        print("Solution analysis here :)")
+        all_missions_detailed = []
+        all_missions_stops = []
+
+        for vehicle_id in range(NUM_DRONES):
+            index = routing.Start(vehicle_id)
+
+            mission_stops_solver = []
+            while not routing.IsEnd(index):
+                node_index_solver = manager.IndexToNode(index)
+                mission_stops_solver.append(node_index_solver)
+                index = solution.Value(routing.NextVar(index))
+
+            mission_stops_solver.append(manager.IndexToNode(index))
+
+            if len(mission_stops_solver) > 2:
+                mission_stops_original = [
+                    solver_idx_to_waypoint_idx[i] for i in mission_stops_solver
+                ]
+                all_missions_stops.append(mission_stops_original)
+
+                current_full_mission = []
+
+                for i in range(len(mission_stops_original) - 1):
+                    start_node = mission_stops_original[i]
+                    end_node = mission_stops_original[i + 1]
+
+                    segment = get_full_path(
+                        start_node, end_node, predecessors, n_max_valid
+                    )
+
+                    if not segment:
+                        print(f"Skipping bad segment: {start_node} to {end_node}")
+                        continue
+
+                    if i == 0:
+                        current_full_mission.extend(segment)
+                    else:
+                        current_full_mission.extend(segment[1:])
+
+                all_missions_detailed.append(current_full_mission)
+
+        print(f"Created {len(all_missions_detailed)} missions.")
+
+        visited_nodes = set()
+        for path in all_missions_detailed:
+            visited_nodes.update(path)
+
+        required_nodes = set(valid_photo_indices)
+        missing_nodes = required_nodes - visited_nodes
+
+        if not missing_nodes:
+            print("Validation Success: All required photo waypoints are covered.")
+        else:
+            print(f"Validation Failed: Missing {len(missing_nodes)} waypoints.")
+
+        max_dist_violation = False
+        total_dist_all_missions = 0
+
+        for i, path in enumerate(all_missions_detailed):
+            mission_dist = 0
+            if not path:
+                continue
+
+            for j in range(len(path) - 1):
+                u = path[j]
+                v = path[j + 1]
+                mission_dist += distance_matrix[u][v]
+
+            total_dist_all_missions += mission_dist
+            if mission_dist > MAX_MISSION_DISTANCE:
+                print(f"Mission {i} failed: {mission_dist} > {MAX_MISSION_DISTANCE}")
+                max_dist_violation = True
+
+        if not max_dist_violation:
+            print("Validation Success: All missions within battery limits.")
+
+        print(f"Total Missions: {len(all_missions_detailed)}")
+        print(f"Total Flight Distance: {total_dist_all_missions:.2f} ft")
+        print(f"Solver Objective: {solution.ObjectiveValue()} ft (uses sub-matrix)")
+
+        visualize_polygon(
+            polygon, asset_coords, photo_coords, points_lat_long, all_missions_detailed
+        )
+
     else:
         print("Solver failed to find a solution.")
 
-    sys.exit()
+    sys.exit(0)
 
 
 if __name__ == "__main__":
