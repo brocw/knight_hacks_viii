@@ -10,14 +10,29 @@ from streamlit_folium import st_folium
 
 
 def stat(mat, name):
-    print(f"Stats for {name}")
-    print(f"Count: {len(mat)}")
-    print(f"Mean: {np.mean(mat)}")
-    print(f"Median: {np.median(mat)}")
-    print(f"Std Dev: {np.std(mat)}")
-    print(f"Min: {np.min(mat)}")
-    print(f"Max: {np.max(mat)}")
-    print(f"{mat}\n")
+    """Display statistics for a matrix/array in Streamlit"""
+    st.subheader(f"📊 Stats for {name}")
+    
+    # Create columns for a nice layout
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Count", len(mat))
+        st.metric("Mean", f"{np.mean(mat):.4f}")
+    
+    with col2:
+        st.metric("Median", f"{np.median(mat):.4f}")
+        st.metric("Std Dev", f"{np.std(mat):.4f}")
+    
+    with col3:
+        st.metric("Min", f"{np.min(mat):.4f}")
+        st.metric("Max", f"{np.max(mat):.4f}")
+    
+    # Optional: Show the data in an expander to keep it clean
+    with st.expander(f"View {name} data"):
+        st.write(mat)
+    
+    st.divider()  # Add a visual separator
 
 
 def visualize_polygon(polygon, assets, photos, points_lat_long):
@@ -111,7 +126,7 @@ def create_folium_map(points_lat_long, _polygon, assets):
     ).add_to(m)
 
     # Add a circle marker for the depot
-    depot_marker = folium.CircleMarker(
+    depot_marker = folium.Marker(
         location=[points_lat_long[0][1], points_lat_long[0][0]],
         radius=20,
         tooltip='Depot',
@@ -164,26 +179,35 @@ def main():
 
     print("Loaded data!")
 
-    # stat(distance_matrix, "Distance Matrix")
-    # stat(predecessors, "Predecessors")
-    # stat(points_lat_long, "Points (Lat/Long)")
-    # stat(asset_indexes, "Asset Indexes")
-    # stat(photo_indexes, "Photo Indexes")
+    st.title("Optimizing Drone Flights")
 
-    st.title("Drone Flight Optimization!")
-
-    # The key parameter ensures state is maintained across reruns
-    # returned_objects=[] prevents the widget from triggering reruns on interaction
+    # Display the map first
     st_folium(folium_map, width=700, height=700, key="drone_map", returned_objects=[])
 
+    # Show statistics in an expandable section
+    with st.expander("📈 View Data Statistics", expanded=False):
+        stat(distance_matrix, "Distance Matrix")
+        stat(predecessors, "Predecessors")
+        stat(points_lat_long, "Points (Lat/Long)")
+        stat(asset_indexes, "Asset Indexes")
+        stat(photo_indexes, "Photo Indexes")
+
+    st.subheader('This is our flight zone and asset locations!')
 
 
 
 
 
 
+    # dataframe = pd.DataFrame({
+    #     'first column': [1, 2, 3, 4],
+    #     'second column': [10, 20, 30, 40]
+    # })
 
-
+    # option = st.selectbox(
+    #     'Which number do you like best?',
+    #     dataframe['first column']
+    # )
 
 
 
@@ -217,15 +241,7 @@ def main():
     #     )
     #     st.write(chart_data)
 
-    # dataframe = pd.DataFrame({
-    #     'first column': [1, 2, 3, 4],
-    #     'second column': [10, 20, 30, 40]
-    # })
-
-    # option = st.selectbox(
-    #     'Which number do you like best?',
-    #     dataframe['first column']
-    # )
+    
 
     # st.write('You selected: ', option)
 
