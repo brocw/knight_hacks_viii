@@ -283,7 +283,7 @@ def create_folium_map(points_lat_long, _polygon, photos, all_missions_detailed):
             locations=path_coords_lat_lon,
             tooltip=f"Mission {i+1}",
             color=route_colors[i % len(route_colors)],
-            weight=3,
+            weight=5,
             opacity=0.7,
         ).add_to(route_group)
     route_group.add_to(m)
@@ -315,6 +315,15 @@ def main():
         "<h1 style='text-align: center;'>Optimizing Drone Flights</h1>",
         unsafe_allow_html=True,
     )
+
+    # Show statistics in an expandable section
+    with st.expander("📈 View Data Statistics", expanded=False):
+        stat(distance_matrix, "Distance Matrix")
+        # stat(predecessors, "Predecessors")
+        stat(points_lat_long, "Points (Lat/Long)")
+        stat(asset_indexes, "Asset Indexes")
+        stat(photo_indexes, "Photo Indexes")
+
     st.divider()
 
     # Loading polygon (keep spinner active while we read and parse WKT so
