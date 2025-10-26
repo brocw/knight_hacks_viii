@@ -6,7 +6,9 @@ from scipy.sparse.csgraph import shortest_path
 import plotly.graph_objects as go
 import numpy as np
 import sys
-
+import streamlit as st
+import folium
+from streamlit_folium import st_folium
 import visual
 
 # CONSTANTS
@@ -15,6 +17,7 @@ NUM_DRONES = 250
 SOLVER_LIMIT_TIME_SEC = 120
 
 
+# Just a number
 def calculate_vrp(dist_matrix, photo_coords):
     depot_index = 0
 
@@ -47,18 +50,18 @@ def calculate_vrp(dist_matrix, photo_coords):
     )
     search_parameters.time_limit.FromSeconds(SOLVER_LIMIT_TIME_SEC)
 
-    print("Solving VRP...")
     solution = routing.SolveWithParameters(search_parameters)
 
     if not solution:
-        print("No solution found!")
+        st.write("No solution found!")
         return None
 
-    print(f"Solution found! Total distance: {solution.ObjectiveValue()} feet.")
+    st.write(f"Solution found! Total distance: {solution.ObjectiveValue()} feet.")
 
     return solution, manager, routing, solver_idx_to_waypoint_idx
 
 
+# Number
 def get_full_path(from_node_orig, to_node_orig, predecessors_matrix, n_max):
     path = []
     curr = to_node_orig
@@ -77,7 +80,7 @@ def get_full_path(from_node_orig, to_node_orig, predecessors_matrix, n_max):
             if prev == from_node_orig:
                 pass
             else:
-                print(
+                st.write(
                     f"Error: Path reconstruction found invalid node {prev} from predecessors[{from_node_orig}][{curr}]"
                 )
                 return None
@@ -87,11 +90,11 @@ def get_full_path(from_node_orig, to_node_orig, predecessors_matrix, n_max):
             return path[::-1]
 
         if prev == curr:
-            print(f"Path reconstruction failed (self-cycle) at {curr}")
+            st.write(f"Path reconstruction failed (self-cycle) at {curr}")
             return None
 
         if prev in visted_in_segment:
-            print(
+            st.write(
                 f"Path reconstruction failed (multi-node cycle) from {from_node_orig} to {to_node_orig}"
             )
 
@@ -100,6 +103,7 @@ def get_full_path(from_node_orig, to_node_orig, predecessors_matrix, n_max):
     return None
 
 
+# Number
 def create_missions(solution_package, predecessors, n_max_valid):
     solution, manager, routing, solver_idx_to_waypoint_idx = solution_package
     all_missions_detailed = []
@@ -141,10 +145,11 @@ def create_missions(solution_package, predecessors, n_max_valid):
 
             all_missions_detailed.append(current_full_mission)
 
-    print(f"Created {len(all_missions_detailed)} missions.")
+    st.write(f"Created {len(all_missions_detailed)} missions.")
     return all_missions_detailed
 
 
+# Number
 def validate(distance_matrix, all_missions_detailed, valid_photo_indices):
     visited_nodes = set()
     for path in all_missions_detailed:
@@ -154,9 +159,9 @@ def validate(distance_matrix, all_missions_detailed, valid_photo_indices):
     missing_nodes = required_nodes - visited_nodes
 
     if not missing_nodes:
-        print("Validation Success: All required photo waypoints are covered.")
+        st.write("Validation Success: All required photo waypoints are covered.")
     else:
-        print(f"Validation Failed: Missing {len(missing_nodes)} waypoints.")
+        st.write(f"Validation Failed: Missing {len(missing_nodes)} waypoints.")
 
     max_dist_violation = False
     total_dist_all_missions = 0
@@ -173,13 +178,131 @@ def validate(distance_matrix, all_missions_detailed, valid_photo_indices):
 
         total_dist_all_missions += mission_dist
         if mission_dist > MAX_MISSION_DISTANCE:
-            print(f"Mission {i} failed: {mission_dist} > {MAX_MISSION_DISTANCE}")
+            st.write(f"Mission {i} failed: {mission_dist} > {MAX_MISSION_DISTANCE}")
             max_dist_violation = True
 
     if not max_dist_violation:
-        print("Validation Success: All missions within battery limits.")
+        st.write("Validation Success: All missions within battery limits.")
 
     return total_dist_all_missions
+
+
+def visualize_polygon(polygon, assets, photos, points_lat_long):
+    poly_lons, poly_lats = polygon.exterior.xy
+    center_lon = polygon.centroid.x
+    center_lat = polygon.centroid.y
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scattermapbox(
+            mode="lines",
+            lon=list(poly_lons),
+            lat=list(poly_lats),
+            fill="toself",
+            fillcolor="rgba(173, 216, 230, 0.3)",
+            line=dict(color="blue", width=2),
+            name="Flight Zone",
+        )
+    )
+
+    depot_lon_lat = points_lat_long[0]
+    depot_lon = depot_lon_lat[0]
+    depot_lat = depot_lon_lat[1]
+
+    print(f"Depot at [{depot_lon}, {depot_lat}]")
+
+    layout_layers = []
+
+    depot_layer = {
+        "sourcetype": "geojson",
+        "source": {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [depot_lon, depot_lat]},
+        },
+        "type": "circle",
+        "color": "green",
+    }
+
+    asset_layer = {
+        "sourcetype": "geojson",
+        "source": {
+            "type": "Feature",
+            "geometry": {"type": "MultiPoint", "coordinates": assets.tolist()},
+        },
+        "type": "circle",
+        "color": "red",
+        "opacity": 0.25,
+    }
+
+    photo_layer = {
+        "sourcetype": "geojson",
+        "source": {
+            "type": "Feature",
+            "geometry": {"type": "MultiPoint", "coordinates": photos.tolist()},
+        },
+        "type": "circle",
+        "color": "blue",
+        "opacity": 0.1,
+    }
+
+    layout_layers.append(asset_layer)
+    layout_layers.append(photo_layer)
+    layout_layers.append(depot_layer)
+
+    fig.update_layout(
+        title_text="Drone Flight Polygon",
+        mapbox_style="carto-positron",
+        mapbox_center_lon=center_lon,
+        mapbox_center_lat=center_lat,
+        mapbox_zoom=16,
+        margin={"r": 0, "t": 40, "l": 0, "b": 0},
+        mapbox_layers=layout_layers,
+    )
+    fig.show()
+
+@st.cache_data
+def create_folium_map(points_lat_long, _polygon, assets):
+    m = folium.Map(location=[_polygon.centroid.y, _polygon.centroid.x], zoom_start=16)
+
+    # Get polygon coordinates
+    coords = list(_polygon.exterior.coords)
+    coords_latlon = [(lat, lon) for lon, lat in coords]
+
+    folium.Polygon(
+        locations=coords_latlon,
+        color='blue',
+        fill=True,
+        fillColor='blue',
+        fillOpacity=0.3,
+        weight=2
+    ).add_to(m)
+
+    # Add a circle marker for the depot
+    depot_marker = folium.Marker(
+        location=[points_lat_long[0][1], points_lat_long[0][0]],
+        radius=20,
+        tooltip='Depot',
+        color='yellow',
+        fill=True,
+        fillOpacity=0.5,
+        stroke=True,
+        opacity=20
+    ).add_to(m)
+
+    # Add a circle marker for each asset
+    for i, asset_coord in enumerate(assets):
+        folium.CircleMarker(
+            location=[asset_coord[1], asset_coord[0]],  # lat, lon format
+            radius=6,
+            color='red',
+            fill=True,
+            fillColor='red',
+            fillOpacity=0.6,
+            weight=2
+        ).add_to(m)
+
+    return m
+
 
 
 def main():
@@ -190,17 +313,26 @@ def main():
     asset_indexes = np.load("asset_indexes.npy")
     photo_indexes = np.load("photo_indexes.npy")
 
-    # Loading polygon
+    # Centered title using markdown with custom CSS
+    st.markdown("<h1 style='text-align: center;'>Optimizing Drone Flights</h1>", unsafe_allow_html=True)
+    st.divider()
+
+
+    # Loading polygon (keep spinner active while we read and parse WKT so
+    # both `polygon_wkt` and `polygon` are available during the spinner)
     with open("polygon_lon_lat.wkt", "r") as f:
         polygon_wkt = f.read()
     polygon = wkt_loads(polygon_wkt)
 
-    print("Loaded data!")
+    st.write("Loaded data!")
 
-    print("Re-computing Predecessor Matrix...")
-    dist_matrix_fw, predecessors_fw = shortest_path(
-        csgraph=distance_matrix, method="FW", directed=False, return_predecessors=True
-    )
+    with st.spinner("Re-computing Predecessor Matrix...", show_time=True):
+        dist_matrix_fw, predecessors_fw = shortest_path(
+            csgraph=distance_matrix, method="FW", directed=False, return_predecessors=True
+        )
+
+    st.write("Re-computing done!")
+
     predecessors = predecessors_fw
     distance_matrix = dist_matrix_fw
 
@@ -212,41 +344,67 @@ def main():
 
     # Validating Asset, Photo Coordinates, Indices
     valid_asset_indices = [
-        i for i in range(asset_indexes[0], asset_indexes[1]) if i < n_max_valid
+        i for i in range(asset_indexes[0], asset_indexes[1]) if i < len(points_lat_long)
     ]
     asset_coords = points_lat_long[valid_asset_indices]
+
     valid_photo_indices = [
-        i for i in range(photo_indexes[0], photo_indexes[1]) if i < n_max_valid
+        i for i in range(photo_indexes[0], photo_indexes[1]) if i < len(points_lat_long)
     ]
     photo_coords = points_lat_long[valid_photo_indices]
 
     # Calculating VRP (Vehicle Route Plan)
-    solution_package = calculate_vrp(distance_matrix, valid_photo_indices)
+
+    with st.spinner(" Calculating VRP (Vehicle Route Plan)", show_time=True):
+        solution_package = calculate_vrp(distance_matrix, valid_photo_indices)
+
+    st.write("Calculating VRP (Vehicle Route Plan) done! ")
+
     if solution_package:
         # Find individual missions from VRP
-        all_missions_detailed = create_missions(
-            solution_package, predecessors, n_max_valid
-        )
+
+        with st.spinner("Find individual missions from VRP", show_time=True):
+            st.session_state.all_missions_detailed = create_missions(
+                solution_package, predecessors, n_max_valid
+            )
+        
+        st.write("Individual mission created!")
+
         solution = solution_package[0]
 
         # Validate missions (All waypoints covered, battery usage)
-        total_dist_all_missions = validate(
-            distance_matrix, all_missions_detailed, valid_photo_indices
-        )
+        with st.spinner("Validate missions (All waypoints covered, battery usage)", show_time=True):
+            total_dist_all_missions = validate(
+                distance_matrix, st.session_state.all_missions_detailed, valid_photo_indices
+            )
 
-        print(f"Total Missions: {len(all_missions_detailed)}")
-        print(f"Total Flight Distance: {total_dist_all_missions:.2f} ft")
-        print(f"Solver Objective: {solution.ObjectiveValue()} ft (uses sub-matrix)")
+        st.write("Validating missions is done!")
 
+        st.write(f"Total Missions: {len(st.session_state.all_missions_detailed)}")
+        st.write(f"Total Flight Distance: {total_dist_all_missions:.2f} ft")
+        st.write(f"Solver Objective: {solution.ObjectiveValue()} ft (uses sub-matrix)")
+
+
+
+        st.header("Full Map")
+
+
+        # Loading map
+        folium_map = create_folium_map(points_lat_long, polygon, asset_coords)
+
+
+        # Display the map first
+        st_folium(folium_map, width=700, height=700, key="drone_map", returned_objects=[])
+        
+        
         # Pop-up polygon of route
         visual.visualize_polygon(
-            polygon, asset_coords, photo_coords, points_lat_long, all_missions_detailed
+            polygon, asset_coords, photo_coords, points_lat_long, st.session_state.all_missions_detailed
         )
 
-    else:
-        print("Solver failed to find a solution.")
 
-    sys.exit(0)
+    else:
+        st.write("Solver failed to find a solution.")
 
 
 if __name__ == "__main__":
